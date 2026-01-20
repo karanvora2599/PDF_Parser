@@ -72,7 +72,8 @@ class ParagraphReconstructor:
             return []
         
         # Sort blocks by vertical position (top to bottom)
-        sorted_blocks = sorted(blocks, key=lambda b: -b.bbox.y1)
+        # PyMuPDF coords: 0 is top, increasing downwards. So sort ascending y0.
+        sorted_blocks = sorted(blocks, key=lambda b: b.bbox.y0)
         
         # Group blocks into paragraphs
         paragraphs: list[list["RawTextBlock"]] = []

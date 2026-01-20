@@ -194,15 +194,18 @@ class LayoutAnalyzer:
         footer_blocks: list["RawTextBlock"] = []
         content_blocks: list["RawTextBlock"] = []
         
-        header_threshold = page_height - self.config.header_margin
-        footer_threshold = self.config.footer_margin
+        # Logic for Top-Left Origin (0=Top, Height=Bottom)
+        header_threshold = self.config.header_margin
+        footer_threshold = page_height - self.config.footer_margin
         
         for block in blocks:
             # Check if block is in header region (top of page)
-            if block.bbox.y1 > header_threshold:
+            # Use y1 (bottom of block) to ensure it's fully/mostly in header
+            if block.bbox.y1 < header_threshold:
                 header_blocks.append(block)
             # Check if block is in footer region (bottom of page)
-            elif block.bbox.y0 < footer_threshold:
+            # Use y0 (top of block) to ensure it starts in footer
+            elif block.bbox.y0 > footer_threshold:
                 footer_blocks.append(block)
             else:
                 content_blocks.append(block)

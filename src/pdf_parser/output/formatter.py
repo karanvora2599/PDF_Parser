@@ -109,11 +109,13 @@ class OutputFormatter:
             # Collect all content items with positions for ordering
             content_items = self._collect_page_content(page)
             
-            # Sort by vertical position (top to bottom)
-            content_items.sort(key=lambda x: -x[0])
+            # Sort by column first, then by vertical position (top to bottom)
+            # Tuple is (column_index, y_position, content)
+            # PyMuPDF uses top-left origin, so y increases downwards. Sort ascending.
+            content_items.sort(key=lambda x: (x[0], x[1]))
             
             # Output content
-            for _, content in content_items:
+            for _, _, content in content_items:
                 lines.append(content)
                 lines.append("")
             
@@ -127,28 +129,29 @@ class OutputFormatter:
     def _collect_page_content(
         self,
         page: StructuredPage,
-    ) -> list[tuple[float, str]]:
+    ) -> list[tuple[int, float, str]]:
         """
-        Collect all content from a page with vertical positions.
+        Collect all content from a page with positions for ordering.
         
-        Returns list of (y_position, content_string) tuples.
+        Returns list of (column_index, y_position, content_string) tuples.
+        Items are sorted by column first, then by y-position (top to bottom).
         """
-        items: list[tuple[float, str]] = []
+        items: list[tuple[int, float, str]] = []
         
         # Add text blocks
         for block in page.blocks:
             content = self._format_text_block_plain(block)
             if content.strip():
-                items.append((block.bbox.y1, content))
+                items.append((block.column_index, block.bbox.y1, content))
         
-        # Add tables
+        # Add tables (assign to column 0 by default)
         for table in page.tables:
             if table.ascii_representation:
-                items.append((table.bbox.y1, table.ascii_representation))
+                items.append((0, table.bbox.y1, table.ascii_representation))
             else:
                 # Generate ASCII representation on the fly
                 ascii_table = self._ascii_converter.convert(table)
-                items.append((table.bbox.y1, ascii_table))
+                items.append((0, ascii_table, table.bbox.y1))
         
         return items
     
@@ -193,11 +196,11 @@ class OutputFormatter:
                 lines.append(f"*Page {page.page_number}*")
                 lines.append("")
             
-            # Collect and sort content
+            # Collect and sort content by column, then y-position
             content_items = self._collect_page_content_markdown(page)
-            content_items.sort(key=lambda x: -x[0])
+            content_items.sort(key=lambda x: (x[0], x[1]))
             
-            for _, content in content_items:
+            for _, _, content in content_items:
                 lines.append(content)
                 lines.append("")
         
@@ -206,18 +209,18 @@ class OutputFormatter:
     def _collect_page_content_markdown(
         self,
         page: StructuredPage,
-    ) -> list[tuple[float, str]]:
-        """Collect page content formatted for Markdown."""
-        items: list[tuple[float, str]] = []
+    ) -> list[tuple[int, float, str]]:
+        """Collect page content formatted for Markdown with column ordering."""
+        items: list[tuple[int, float, str]] = []
         
         for block in page.blocks:
             content = self._format_text_block_markdown(block)
             if content.strip():
-                items.append((block.bbox.y1, content))
+                items.append((block.column_index, block.bbox.y1, content))
         
         for table in page.tables:
             md_table = self._ascii_converter.convert_to_markdown(table)
-            items.append((table.bbox.y1, md_table))
+            items.append((0, table.bbox.y1, md_table))
         
         return items
     
